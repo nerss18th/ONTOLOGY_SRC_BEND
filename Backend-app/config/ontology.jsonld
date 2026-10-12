@@ -59,10 +59,34 @@
       "rdfs:range": "se:Attribute"
     },
     {
+      "@id": "se:hasMethod",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": "has method",
+      "rdfs:comment": "Links a class to its methods",
+      "rdfs:domain": "se:Class",
+      "rdfs:range": "se:Method"
+    },
+    {
       "@id": "se:calls",
       "@type": "owl:ObjectProperty",
       "rdfs:label": "calls",
       "rdfs:comment": "Indicates that a method or class calls another method or class"
+    },
+    {
+      "@id": "se:extends",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": "extends",
+      "rdfs:comment": "Indicates that a class inherits from another class (Inheritance / Generalization)",
+      "rdfs:domain": "se:Class",
+      "rdfs:range": "se:Class"
+    },
+    {
+      "@id": "se:implementsInterface",
+      "@type": "owl:ObjectProperty",
+      "rdfs:label": "implements interface",
+      "rdfs:comment": "Indicates that a class implements an interface",
+      "rdfs:domain": "se:Class",
+      "rdfs:range": "se:Class"
     }
   ]
 }

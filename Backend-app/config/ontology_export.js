@@ -17,6 +17,7 @@ async function buildGraphData(projectId) {
         const [useCases] = await pool.query('SELECT * FROM use_cases WHERE project_id = ?', [projectId]);
         const [classes] = await pool.query('SELECT * FROM classes WHERE project_id = ?', [projectId]);
         const [attributes] = await pool.query('SELECT * FROM class_attributes WHERE project_id = ?', [projectId]);
+        const [classImplements] = await pool.query('SELECT * FROM class_implements WHERE project_id = ?', [projectId]);
         const [methods] = await pool.query('SELECT * FROM class_methods WHERE project_id = ?', [projectId]);
         
         // ดึง Activity Diagram
@@ -60,6 +61,17 @@ async function buildGraphData(projectId) {
                 } else if (refs.length === 1) {
                     classNode["se:realizes"] = { "@id": `project${projectId}:${refs[0]}` };
                 }
+            }
+
+            // เพิ่ม se:extends ถ้า class นี้ extend class อื่น
+            if (c.extend_to_class_id && c.extend_to_class_id.trim() !== "") {
+                classNode["se:extends"] = { "@id": `project${projectId}:${c.extend_to_class_id}` };
+            }
+
+            // เพิ่ม se:implementsInterface สำหรับ interface ที่ implement
+            const implList = classImplements.filter(i => i.class_id === c.id && i.impl_class_id && i.impl_class_id.trim() !== "");
+            if (implList.length > 0) {
+                classNode["se:implementsInterface"] = implList.map(i => ({ "@id": `project${projectId}:${i.impl_class_id}` }));
             }
             
             // เพิ่ม attributes ที่เชื่อมโยงกับ class (hasAttribute)
