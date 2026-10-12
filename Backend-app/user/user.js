@@ -267,10 +267,24 @@ router.post('/upload-profile-pic', authGuard, uploadUserPic.single('image'), asy
  * @desc    อัปโหลดสลิปการชำระเงินของผู้ใช้งาน (Pro Plan)
  * @access  Private
  */
-router.post('/upload-receipt', authGuard, uploadReceipt.single('receipt'), async (req, res) => {
+router.post('/upload-receipt', authGuard, (req, res, next) => {
+    uploadReceipt.single('receipt')(req, res, (err) => {
+        if (err) {
+            return res.status(400).json({
+                success: false,
+                message: err.message || 'ไฟล์หลักฐานต้องเป็นรูปภาพเท่านั้น'
+            });
+        }
+        next();
+    });
+}, async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ success: false, message: 'ไม่มีไฟล์สลิปที่อัปโหลด' });
+        }
+
+        if (!req.file.mimetype.startsWith('image/')) {
+            return res.status(400).json({ success: false, message: 'ไฟล์หลักฐานต้องเป็นรูปภาพเท่านั้น' });
         }
 
         const receiptPath = `/user_pic/Receipt/${req.file.filename}`;

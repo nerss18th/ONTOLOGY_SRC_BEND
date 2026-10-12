@@ -11,7 +11,7 @@ const { authGuard, adminGuard } = require('../config/authguard');
 router.get('/users', authGuard, adminGuard, async (req, res) => {
     try {
         const [users] = await pool.query(
-            "SELECT id, email, username, name, phone, plan, role FROM users WHERE role != 'admin' AND plan != 'Admin' ORDER BY id ASC"
+            "SELECT id, email, username, name, phone, plan, role, receipt FROM users WHERE role != 'admin' AND plan != 'Admin' ORDER BY id ASC"
         );
         return res.json({ success: true, users });
     } catch (error) {

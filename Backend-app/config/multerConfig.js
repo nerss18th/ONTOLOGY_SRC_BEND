@@ -57,12 +57,12 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-// filter สำหรับสลิป (รองรับทั้ง image และ pdf)
+// filter สำหรับสลิป (ตรวจสอบเฉพาะไฟล์รูปภาพเท่านั้น)
 const receiptFileFilter = (req, file, cb) => {
-    if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+    if (file.mimetype.startsWith('image/')) {
         cb(null, true);
     } else {
-        cb(new Error('กรุณาอัปโหลดไฟล์รูปภาพหรือ PDF เท่านั้น!'), false);
+        cb(new Error('ไฟล์หลักฐานต้องเป็นรูปภาพเท่านั้น'), false);
     }
 };
 
