@@ -62,6 +62,7 @@ router.get('/project/:projectId/activity-diagrams', authGuard, async (req, res) 
                 activityId: ad.activity_id,
                 activityName: ad.activity_name,
                 useCaseRef: ad.use_case_ref,
+                classRef: ad.class_ref || '',
                 preliminaryActivityId: ad.preliminary_activity_id,
                 description: ad.description,
                 imagePath: ad.image_path,
@@ -95,6 +96,7 @@ router.post('/project/:projectId/activity-diagrams', [authGuard, projectEditorGu
             activityId,
             activityName,
             useCaseRef,
+            classRef,
             preliminaryActivityId,
             description,
             imagePath,
@@ -118,12 +120,13 @@ router.post('/project/:projectId/activity-diagrams', [authGuard, projectEditorGu
         if (diagramPkId) {
             await pool.query(
                 `UPDATE activity_diagrams 
-                 SET activity_id = ?, activity_name = ?, use_case_ref = ?, preliminary_activity_id = ?, description = ?, image_path = ?, file_name = ?, has_swimlane = ?
+                 SET activity_id = ?, activity_name = ?, use_case_ref = ?, class_ref = ?, preliminary_activity_id = ?, description = ?, image_path = ?, file_name = ?, has_swimlane = ?
                  WHERE id = ? AND project_id = ?`,
                 [
                     activityId || 'ACT-01',
                     activityName || 'Activity Diagram',
                     useCaseRef || '',
+                    classRef || '',
                     preliminaryActivityId || '',
                     description || '',
                     imagePath || null,
@@ -135,13 +138,14 @@ router.post('/project/:projectId/activity-diagrams', [authGuard, projectEditorGu
             );
         } else {
             const [insRes] = await pool.query(
-                `INSERT INTO activity_diagrams (project_id, activity_id, activity_name, use_case_ref, preliminary_activity_id, description, image_path, file_name, has_swimlane)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                `INSERT INTO activity_diagrams (project_id, activity_id, activity_name, use_case_ref, class_ref, preliminary_activity_id, description, image_path, file_name, has_swimlane)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     projectId,
                     activityId || 'ACT-01',
                     activityName || 'Activity Diagram',
                     useCaseRef || '',
+                    classRef || '',
                     preliminaryActivityId || '',
                     description || '',
                     imagePath || null,

@@ -129,6 +129,7 @@ async function buildGraphData(projectId) {
                 }
             }
 
+
             // หา Actions ที่อยู่ใน Diagram นี้
             const actionsInDiag = activityActions.filter(a => a.activity_diagram_id === act.id);
             if (actionsInDiag.length > 0) {

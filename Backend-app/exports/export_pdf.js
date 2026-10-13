@@ -41,6 +41,42 @@ const replaceEmpty = (obj) => {
     return obj;
 };
 
+const imageSizePkg = require('image-size');
+const sizeOf = typeof imageSizePkg === 'function'
+    ? imageSizePkg
+    : (imageSizePkg.imageSize || imageSizePkg.default || imageSizePkg);
+
+/**
+ * คำนวณขนาดรูปภาพให้พอดีกับหน้ากระดาษ A4 โดยรักษาสัดส่วน (Aspect Ratio) เดิมของภาพ 100% ไม่ยืดหรือบีบเบี้ยว
+ */
+const getImageDimensions = (imgBuffer) => {
+    try {
+        const dimensions = sizeOf(imgBuffer);
+        if (!dimensions || !dimensions.width || !dimensions.height) {
+            return [500, 350];
+        }
+
+        // หากเป็นภาพ 1x1 (เช่น placeholder จำลอง)
+        if (dimensions.width <= 1 && dimensions.height <= 1) {
+            return [1, 1];
+        }
+
+        const maxWidth = 560;  // ความกว้างสูงสุดในหน้า A4 (ระยะขอบมาตรฐาน)
+        const maxHeight = 520; // ความสูงสูงสุดเพื่อไม่ให้รูปภาพล้นหน้า
+
+        // หาอัตราส่วนการย่อเพื่อไม่ให้เกินทั้งความกว้างและความสูง พร้อมทั้งรักษาสัดส่วนเดิม
+        const scale = Math.min(1, maxWidth / dimensions.width, maxHeight / dimensions.height);
+
+        return [
+            Math.round(dimensions.width * scale),
+            Math.round(dimensions.height * scale)
+        ];
+    } catch (e) {
+        console.error('Error calculating image dimensions in export:', e);
+        return [500, 350];
+    }
+};
+
 /**
  * @route   GET /export/project/:projectId/use-case
  * @desc    Export Use Case Diagram data to a Word Document
@@ -89,26 +125,14 @@ router.get('/project/:projectId/use-case', authGuard, async (req, res) => {
         const imageOptions = {
             centered: false,
             fileType: "docx",
-            getImage: function(tagValue, tagName) {
+            getImage: function (tagValue, tagName) {
                 if (!tagValue || !fs.existsSync(tagValue)) {
                     return Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
                 }
                 return fs.readFileSync(tagValue);
             },
-            getSize: function(img, tagValue, tagName) {
-                try {
-                    const sizeOf = require('image-size');
-                    const dimensions = sizeOf(img);
-                    const maxWidth = 600; // ความกว้างสูงสุดในหน้า A4
-                    
-                    if (dimensions.width > maxWidth) {
-                        const ratio = maxWidth / dimensions.width;
-                        return [maxWidth * 0.8, Math.round(dimensions.height * ratio) * 0.8];
-                    }
-                    return [dimensions.width * 0.8, dimensions.height * 0.8];
-                } catch (e) {
-                    return [600 * 0.8, 400 * 0.8]; // ขนาดสำรองถ้าอ่านภาพไม่ได้
-                }
+            getSize: function (img, tagValue, tagName) {
+                return getImageDimensions(img);
             }
         };
         const imageModule = new ImageModule(imageOptions);
@@ -146,7 +170,7 @@ router.get('/project/:projectId/use-case', authGuard, async (req, res) => {
         const pdfDir = path.dirname(exportFilePath);
         const pdfFileName = exportFileName.replace('.docx', '.pdf');
         const pdfFilePath = path.join(pdfDir, pdfFileName);
-        
+
         try {
             const psCommand = `$word = New-Object -ComObject Word.Application; $word.Visible = $false; $doc = $word.Documents.Open('${exportFilePath}'); $doc.SaveAs([ref] '${pdfFilePath}', [ref] 17); $doc.Close(); $word.Quit();`;
             await execPromise(`powershell.exe -Command "${psCommand}"`);
@@ -264,26 +288,14 @@ router.get('/project/:projectId/class-diagram', authGuard, async (req, res) => {
         const imageOptions = {
             centered: false,
             fileType: "docx",
-            getImage: function(tagValue, tagName) {
+            getImage: function (tagValue, tagName) {
                 if (!tagValue || !fs.existsSync(tagValue)) {
                     return Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
                 }
                 return fs.readFileSync(tagValue);
             },
-            getSize: function(img, tagValue, tagName) {
-                try {
-                    const sizeOf = require('image-size');
-                    const dimensions = sizeOf(img);
-                    const maxWidth = 600; 
-                    
-                    if (dimensions.width > maxWidth) {
-                        const ratio = maxWidth / dimensions.width;
-                        return [maxWidth * 0.8, Math.round(dimensions.height * ratio) * 0.8];
-                    }
-                    return [dimensions.width * 0.8, dimensions.height * 0.8];
-                } catch (e) {
-                    return [600 * 0.8, 400 * 0.8];
-                }
+            getSize: function (img, tagValue, tagName) {
+                return getImageDimensions(img);
             }
         };
         const imageModule = new ImageModule(imageOptions);
@@ -327,7 +339,7 @@ router.get('/project/:projectId/class-diagram', authGuard, async (req, res) => {
         const pdfDir = path.dirname(exportFilePath);
         const pdfFileName = exportFileName.replace('.docx', '.pdf');
         const pdfFilePath = path.join(pdfDir, pdfFileName);
-        
+
         try {
             const psCommand = `$word = New-Object -ComObject Word.Application; $word.Visible = $false; $doc = $word.Documents.Open('${exportFilePath}'); $doc.SaveAs([ref] '${pdfFilePath}', [ref] 17); $doc.Close(); $word.Quit();`;
             await execPromise(`powershell.exe -Command "${psCommand}"`);
@@ -428,7 +440,7 @@ router.get('/project/:projectId/activity-diagram', authGuard, async (req, res) =
             // In the DB, diagrams table stores images per type and project. If multiple activities, it might use the same image, or maybe they have their own image in activity_diagrams.image_path)
             // The template uses %activity_diagram_image, which Docxtemplater Image Module handles.
             // ใช้ ad.image_path ถ้ามี, หากไม่มีให้ใช้จากตาราง diagrams
-            
+
             let absoluteImagePath = null;
             if (ad.image_path) {
                 absoluteImagePath = path.join(__dirname, '..', ad.image_path);
@@ -450,6 +462,7 @@ router.get('/project/:projectId/activity-diagram', authGuard, async (req, res) =
                 activityId: ad.activity_id,
                 activityName: ad.activity_name,
                 useCaseRef: ad.use_case_ref,
+                classRef: ad.class_ref || '',
                 preliminaryActivityId: ad.preliminary_activity_id,
                 description: ad.description,
                 hasSwimlane: ad.has_swimlane,
@@ -476,26 +489,14 @@ router.get('/project/:projectId/activity-diagram', authGuard, async (req, res) =
         const imageOptions = {
             centered: false,
             fileType: "docx",
-            getImage: function(tagValue, tagName) {
+            getImage: function (tagValue, tagName) {
                 if (!tagValue || !fs.existsSync(tagValue)) {
                     return Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64');
                 }
                 return fs.readFileSync(tagValue);
             },
-            getSize: function(img, tagValue, tagName) {
-                try {
-                    const sizeOf = require('image-size');
-                    const dimensions = sizeOf(img);
-                    const maxWidth = 600; 
-                    
-                    if (dimensions.width > maxWidth) {
-                        const ratio = maxWidth / dimensions.width;
-                        return [maxWidth * 0.8, Math.round(dimensions.height * ratio) * 0.8];
-                    }
-                    return [dimensions.width * 0.8, dimensions.height * 0.8];
-                } catch (e) {
-                    return [600 * 0.8, 400 * 0.8];
-                }
+            getSize: function (img, tagValue, tagName) {
+                return getImageDimensions(img);
             }
         };
         const imageModule = new ImageModule(imageOptions);
@@ -538,7 +539,7 @@ router.get('/project/:projectId/activity-diagram', authGuard, async (req, res) =
         const pdfDir = path.dirname(exportFilePath);
         const pdfFileName = exportFileName.replace('.docx', '.pdf');
         const pdfFilePath = path.join(pdfDir, pdfFileName);
-        
+
         try {
             const psCommand = `$word = New-Object -ComObject Word.Application; $word.Visible = $false; $doc = $word.Documents.Open('${exportFilePath}'); $doc.SaveAs([ref] '${pdfFilePath}', [ref] 17); $doc.Close(); $word.Quit();`;
             await execPromise(`powershell.exe -Command "${psCommand}"`);
