@@ -14,11 +14,18 @@ router.get('/', authGuard, async (req, res) => {
         const userEmail = req.user.email;
 
         const [projects] = await pool.query(
-            `SELECT DISTINCT p.id, p.name, p.detail, p.created_by
+            `SELECT p.id, p.name, p.detail, p.created_by,
+                    COALESCE(u.name, u.username, u.email, 'Unknown') AS owner_name,
+                    CASE 
+                        WHEN p.created_by = ? THEN 'Owner'
+                        ELSE COALESCE(MAX(pm.role), 'Member')
+                    END AS role
              FROM projects p
-             LEFT JOIN project_members pm ON p.id = pm.project_id
-             WHERE p.created_by = ? OR pm.user_id = ? OR pm.email = ?`,
-            [userId, userId, userEmail]
+             LEFT JOIN users u ON p.created_by = u.id
+             LEFT JOIN project_members pm ON p.id = pm.project_id AND (pm.user_id = ? OR pm.email = ?)
+             WHERE p.created_by = ? OR pm.user_id = ? OR pm.email = ?
+             GROUP BY p.id, p.name, p.detail, p.created_by, u.name, u.username, u.email`,
+            [userId, userId, userEmail, userId, userId, userEmail]
         );
 
         return res.json({ success: true, projects });
@@ -43,11 +50,12 @@ router.post('/', authGuard, async (req, res) => {
         const userId = req.user.id;
 
         // ตรวจสอบ Plan ปัจจุบันของ user
-        const [users] = await pool.query('SELECT plan FROM users WHERE id = ?', [userId]);
+        const [users] = await pool.query('SELECT plan, role FROM users WHERE id = ?', [userId]);
         const userPlan = users.length > 0 ? users[0].plan : 'Standard';
+        const userRole = users.length > 0 ? users[0].role : (req.user?.role || 'user');
 
-        if (userPlan !== 'Pro') {
-            // นับจำนวนโปรเจกต์ที่ user คนนี้สร้าง
+        if (userPlan !== 'Pro' && userPlan !== 'Admin' && userRole !== 'admin') {
+            // นับเฉพาะโปรเจกต์ที่ user คนนี้เป็น owner (created_by) เท่านั้น ไม่นับรวมโปรเจกต์ที่ถูกเพิ่มเข้าทีม
             const [projectCountRes] = await pool.query('SELECT COUNT(*) as count FROM projects WHERE created_by = ?', [userId]);
             const projectCount = projectCountRes[0].count;
 
